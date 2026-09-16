@@ -1,0 +1,25 @@
+robot:
+  connection_type: "ap"
+
+data_collection:
+  data_dir: "data/raw/run1"
+  files:
+    position: "position_data"
+    attitude: "attitude_data"
+    imu: "idle_imu_data.csv"
+    esc: "esc_data.csv"
+    distance: "idle_tof_data"
+    infrared: "ir_data"
+  frequencies:
+    position: 1
+    attitude: 5
+    imu: 10
+    esc: 20
+    distance: 5
+  buffer_time: 0.5   # Wait time before closing (seconds)
+
+movement:
+  xy_speed: 1      # Forward/Reverse Speed ​​(m/s)
+  distance: 0.6      # Forward/backward travel distance (m)
+  z_speed: 30        # Rotation speed (degrees/second)
+  angle: 90          # Initial turning angle (e.g., 90 degrees)
