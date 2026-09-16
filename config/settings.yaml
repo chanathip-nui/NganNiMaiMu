@@ -9,7 +9,6 @@ data_collection:
     imu: "idle_imu_data.csv"
     esc: "esc_data.csv"
     distance: "idle_tof_data"
-    infrared: "ir_data"
   frequencies:
     position: 1
     attitude: 5
