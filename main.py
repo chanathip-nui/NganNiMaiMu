@@ -29,13 +29,30 @@ def main():
         chassis_ctrl.setup_csv_headers()            # Prepare the CSV file.
         chassis_ctrl.start_sensors()   # sensor data reception
         
-        chassis_ctrl.test_movement()        # Move (or simply call .move_forward())
-        
         chassis_ctrl.stop_sensors()    # Stop receiving sensor data.
         
+    except KeyboardInterrupt:
+        print("\n[Ctrl+C detected] Halting robot movement...")
+
     except Exception as e:
         print(f"Error: {e}")
+
     finally:
+        # 1. Zero wheel velocity immediately to prevent runaway motion
+        try:
+            ep_robot.chassis.drive_speed(x=0, y=0, z=0)
+            time.sleep(0.1)
+        except Exception:
+            pass
+
+        # 2. Safely unregister sensor listeners and flush CSV buffers
+        if chassis_ctrl:
+            try:
+                chassis_ctrl.stop_sensors()
+            except Exception as err:
+                print(f"Error while stopping sensors: {err}")
+
+        # 3. Release hardware connection
         ep_robot.close()
         print("Robot connection closed successfully.")
 

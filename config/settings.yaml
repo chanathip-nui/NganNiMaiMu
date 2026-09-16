@@ -15,6 +15,7 @@ data_collection:
     imu: 10
     esc: 20
     distance: 5
+    camera: 10 #second
   buffer_time: 0.5   # Wait time before closing (seconds)
 
 movement:

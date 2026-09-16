@@ -1,7 +1,6 @@
 import csv
 import time
 import os
-import threading
 from datetime import datetime
 
 
@@ -145,4 +144,5 @@ class ChassisController:
         self.ep_sensor.unsub_distance()  # <-- NEW: Stop distance sensor
 
         print("Data collection and saving to the file have been fully completed.")
+
 
