@@ -10,6 +10,7 @@ import time
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from src.config_loader import load_config
 from src.chassis import ChassisController
+from src.camera import CameraController
 
 def main():
     # Download file setting form settings.yaml
@@ -24,12 +25,15 @@ def main():
         
         # 2. Initialize the chassis control class by passing in the configuration.
         chassis_ctrl = ChassisController(ep_robot, config)
+        camera_ctrl = CameraController(ep_robot, config)
+
+        camera_ctrl.start_camera()
+        camera_ctrl.capture()
+        camera_ctrl.stop_camera()
         
-        # 3. Workflow sequence (with clearly separated functions)
-        chassis_ctrl.setup_csv_headers()            # Prepare the CSV file.
-        chassis_ctrl.start_sensors()   # sensor data reception
-        
-        chassis_ctrl.stop_sensors()    # Stop receiving sensor data.
+        # chassis_ctrl.setup_csv_headers()            # Prepare the CSV file.
+        # chassis_ctrl.start_sensors()   # sensor data reception        
+        # chassis_ctrl.stop_sensors()    # Stop receiving sensor data.
         
     except KeyboardInterrupt:
         print("\n[Ctrl+C detected] Halting robot movement...")
