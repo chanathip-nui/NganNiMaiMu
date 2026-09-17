@@ -16,6 +16,7 @@ data_collection:
     esc: 20
     distance: 5
     camera: 5 #second
+    gimbal: 1
   buffer_time: 0.5   # Wait time before closing (seconds)
 
 movement:
@@ -23,3 +24,7 @@ movement:
   distance: 0.6      # Forward/backward travel distance (m)
   z_speed: 30        # Rotation speed (degrees/second)
   angle: 90          # Initial turning angle (e.g., 90 degrees)
+
+gimbal:
+  bullet_type: "INFRARED_FIRE"
+
