@@ -5,5 +5,6 @@ from .chassis import ChassisController
 __all__ = [
     "ChassisController",
     "CameraController",
-    "GimbalController"
+    "GimbalController",
+    "TargetDetector"
 ]

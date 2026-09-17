@@ -3,6 +3,8 @@ from robomaster import robot
 # main.py
 import sys
 import os
+import cv2
+import numpy as np
 from robomaster import robot
 import time
 
@@ -12,6 +14,7 @@ from src.config_loader import load_config
 from src.chassis import ChassisController
 from src.camera import CameraController
 from src.gimbal import GimbalController
+from src.detector import TargetDetector
 
 def main():
     # Download file setting form settings.yaml
@@ -28,8 +31,8 @@ def main():
         chassis_ctrl = ChassisController(ep_robot, config)
         camera_ctrl = CameraController(ep_robot, config)
         gimbal_ctrl = GimbalController(ep_robot, config)
+        detector = TargetDetector()
 
-        gimbal_ctrl.gimbal_shoot()    
         #camera
         # camera_ctrl.start_camera()
         # camera_ctrl.capture()
@@ -47,21 +50,9 @@ def main():
         print(f"Error: {e}")
 
     finally:
-        # 1. Zero wheel velocity immediately to prevent runaway motion
-        try:
-            ep_robot.chassis.drive_speed(x=0, y=0, z=0)
-            time.sleep(0.1)
-        except Exception:
-            pass
-
-        # 2. Safely unregister sensor listeners and flush CSV buffers
-        if chassis_ctrl:
-            try:
-                chassis_ctrl.stop_sensors()
-            except Exception as err:
-                print(f"Error while stopping sensors: {err}")
-
-        # 3. Release hardware connection
+        ep_robot.chassis.drive_speed(x=0, y=0, z=0)
+        ep_robot.gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+        camera_ctrl.stop_camera()
         ep_robot.close()
         print("Robot connection closed successfully.")
 

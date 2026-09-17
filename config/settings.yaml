@@ -27,4 +27,16 @@ movement:
 
 gimbal:
   bullet_type: "INFRARED_FIRE"
+  target_marker: "1"
+  error_threshold: 0.03       # ระยะคลาดเคลื่อนที่ยอมรับได้ (Deadband)
+  pid_yaw:
+    kp: 120.0                 # ปรับค่าตามความเหมาะสม
+    ki: 0.0
+    kd: 5.0
+    limit: 180
+  pid_pitch:
+    kp: 100.0
+    ki: 0.0
+    kd: 5.0
+    limit: 120
 
