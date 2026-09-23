@@ -9,7 +9,8 @@ class ChassisController:
         # 1. Connect to the robot unit, chassis, and sensors.
         self.ep_robot = ep_robot
         self.ep_chassis = ep_robot.chassis
-        self.ep_sensor = ep_robot.sensor  # <-- NEW: Initialize the sensor module
+        self.ep_sensor = ep_robot.sensor
+        self.ep_gimbal = ep_robot.gimbal
 
         # 2. Retrieve values from the configuration.
         self.data_dir = config["data_collection"]["data_dir"]
@@ -22,7 +23,8 @@ class ChassisController:
         self.freq_esc = config["data_collection"]["frequencies"]["esc"]
         self.freq_dist = config["data_collection"]["frequencies"][
             "distance"
-        ]  # <-- NEW: Distance frequency
+        ]
+        self.freq_gimbal = config["data_collection"]["frequencies"]["gimbal"]
 
         # Retrieve motion-related values.
         self.default_speed = config["movement"]["xy_speed"]
@@ -43,7 +45,8 @@ class ChassisController:
         )
         imu_name = f"log_{date_str}_{config['data_collection']['files']['imu']}.csv"
         esc_name = f"log_{date_str}_{config['data_collection']['files']['esc']}.csv"
-        dist_name = f"log_{date_str}_{config['data_collection']['files']['distance']}.csv"  # <-- NEW: Distance filename
+        dist_name = f"log_{date_str}_{config['data_collection']['files']['distance']}.csv"
+        gimbal_name = f"log_{date_str}_{config['data_collection']['files']['gimbal']}.csv"
 
         # 4. Name the file paths for the CSV files.
         self.pos_file = os.path.join(self.data_dir, pos_name)
@@ -52,7 +55,8 @@ class ChassisController:
         self.esc_file = os.path.join(self.data_dir, esc_name)
         self.dist_file = os.path.join(
             self.data_dir, dist_name
-        )  # <-- NEW: Distance file path
+        ) 
+        self.gimbal_file = os.path.join(self.data_dir, gimbal_name)
 
 
     # =========================================================
@@ -84,8 +88,10 @@ class ChassisController:
         self.save_to_csv(self.esc_file, data)
 
     def handle_distance(self, data):
-        # <-- NEW: Callback for distance data
         self.save_to_csv(self.dist_file, data)
+
+    def handle_gimbal(self, data):
+        self.save_to_csv(self.gimbal_file, data)
 
     # =========================================================
     # Part 2: Sensor Data Collection Management Function
@@ -115,8 +121,10 @@ class ChassisController:
             csv.writer(f).writerow(["unix_timestamp", "esc_data"])
 
         with open(self.dist_file, mode="w", newline="") as f:
-            # <-- NEW: Write headers for the 4 ToF sensors
             csv.writer(f).writerow(["unix_timestamp", "tof1"])
+
+        with open(self.gimbal_file, mode="w", newline="") as f:
+            csv.writer(f).writerow(["unix_timestamp", "pitch_angle", "yaw_angle", "pitch_ground_angle", "yaw_ground_angle"])
 
 
         print("All CSV files have been prepared.")
@@ -131,7 +139,8 @@ class ChassisController:
         self.ep_chassis.sub_esc(freq=self.freq_esc, callback=self.handle_esc)
         self.ep_sensor.sub_distance(
             freq=self.freq_dist, callback=self.handle_distance
-        )  # <-- NEW: Start distance sensor
+        )
+        self.ep_gimbal.sub_angle(freq=self.freq_gimbal, callback=self.handle_gimbal)
 
 
     def stop_sensors(self):
@@ -141,7 +150,8 @@ class ChassisController:
         self.ep_chassis.unsub_attitude()
         self.ep_chassis.unsub_imu()
         self.ep_chassis.unsub_esc()
-        self.ep_sensor.unsub_distance()  # <-- NEW: Stop distance sensor
+        self.ep_sensor.unsub_distance() 
+        self.ep_gimbal.unsub_angle()
 
         print("Data collection and saving to the file have been fully completed.")
 

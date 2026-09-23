@@ -9,6 +9,7 @@ data_collection:
     imu: "idle_imu_data.csv"
     esc: "esc_data.csv"
     distance: "idle_tof_data"
+    gimbal: "gimbal_data"
   frequencies:
     position: 1
     attitude: 5
@@ -26,7 +27,7 @@ movement:
   angle: 90          # Initial turning angle (e.g., 90 degrees)
 
 gimbal:
-  bullet_type: "INFRARED_FIRE"
+  bullet_type: "WATER_FIRE"
   target_marker: "1"
   error_threshold: 0.03       # ระยะคลาดเคลื่อนที่ยอมรับได้ (Deadband)
   pid_yaw:

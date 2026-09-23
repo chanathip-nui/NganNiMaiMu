@@ -77,26 +77,32 @@ class GimbalController:
     def gimbal_shoot(self):
         self.ep_blaster.fire(fire_type=self.bullet, times=self.freq_gimbal)
 
-    def aim_and_shoot(self, target_center, frame_width, frame_height):
-        """คำนวณ Error จากพิกัดพิกเซล เล็ง และยิงเมื่อตรงเป้า"""
-        if self.target_locked:
-            return
+    def reset_gimbal(self):
+        """หยุดมอเตอร์ สั่งกิมบอลกลับมาจุดศูนย์กลาง (0, 0) และรีเซ็ตค่า PID ทั้งหมด"""
+        self.ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+        self.ep_gimbal.recenter().wait_for_completed()
+        self.pid_yaw.reset()
+        self.pid_pitch.reset()
+        self.target_locked = False
+        print(">> Gimbal recentered and PID reset.")
 
+    def aim_and_shoot(self, target_center, frame_width, frame_height):
+        """คำนวณ Error เล็ง และยิง คืนค่า True เมื่อยิงสำเร็จ"""
         cx, cy = target_center
-        # Normalize พิกัดให้อยู่ในช่วง -0.5 ถึง +0.5 เทียบจุดกึ่งกลางจอ
         err_x = (cx / frame_width) - 0.5
         err_y = 0.5 - (cy / frame_height)
 
         yaw_speed = self.pid_yaw.compute(err_x)
         pitch_speed = self.pid_pitch.compute(err_y)
 
-        # ตรวจสอบระยะล็อกเป้าหมาย (Deadband)
+        # เมื่อเล็งเข้าเป้าตาม Deadband
         if abs(err_x) < self.threshold and abs(err_y) < self.threshold:
-            self.ep_robot.gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
+            self.ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
             print(">> Locked on Target! Firing...")
             self.gimbal_shoot()
-            self.target_locked = True
             self.pid_yaw.reset()
             self.pid_pitch.reset()
+            return True  # ยิงสำเร็จ
         else:
-            self.ep_robot.gimbal.drive_speed(pitch_speed=pitch_speed, yaw_speed=yaw_speed)
+            self.ep_gimbal.drive_speed(pitch_speed=pitch_speed, yaw_speed=yaw_speed)
+            return False
