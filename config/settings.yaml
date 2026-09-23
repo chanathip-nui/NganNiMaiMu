@@ -10,6 +10,7 @@ data_collection:
     esc: "esc_data.csv"
     distance: "idle_tof_data"
     gimbal: "gimbal_data"
+    exploration: "exploration_grid_data"
   frequencies:
     position: 1
     attitude: 5
@@ -41,3 +42,18 @@ gimbal:
     kd: 5.0
     limit: 120
 
+grid_map:
+  max_x: 4              # จำนวนช่องแกน X
+  max_y: 5              # จำนวนช่องแกน Y
+  cell_size: 0.6         # ขนาดช่อง (m) — 60cm
+  start_x: 0             # ตำแหน่งเริ่มต้น grid X (0-based)
+  start_y: 0             # ตำแหน่งเริ่มต้น grid Y (0-based)
+  start_heading: 0       # ทิศเริ่มต้น 0=North, 1=East, 2=South, 3=West
+
+exploration:
+  wall_threshold_mm: 400  # ระยะ ToF < นี้ = มีกำแพง (mm)
+  scan_settle_time: 0.5   # รอ gimbal หยุดนิ่งก่อนอ่าน ToF (s)
+  tof_samples: 3          # จำนวนค่า ToF ที่อ่านแล้วเฉลี่ย
+  tof_read_interval: 0.1  # ช่วงเวลาระหว่างการอ่าน ToF แต่ละครั้ง (s)
+  move_speed: 0.5         # ความเร็วเดินหน้า (m/s)
+  turn_speed: 60          # ความเร็วหมุนตัว (deg/s)

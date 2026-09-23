@@ -146,12 +146,18 @@ class ChassisController:
     def stop_sensors(self):
         """Disable all sensors."""
         time.sleep(self.buffer_time)
-        self.ep_chassis.unsub_position()
-        self.ep_chassis.unsub_attitude()
-        self.ep_chassis.unsub_imu()
-        self.ep_chassis.unsub_esc()
-        self.ep_sensor.unsub_distance() 
-        self.ep_gimbal.unsub_angle()
+        for unsub_fn in [
+            self.ep_chassis.unsub_position,
+            self.ep_chassis.unsub_attitude,
+            self.ep_chassis.unsub_imu,
+            self.ep_chassis.unsub_esc,
+            self.ep_sensor.unsub_distance,
+            self.ep_gimbal.unsub_angle,
+        ]:
+            try:
+                unsub_fn()
+            except Exception:
+                pass
 
         print("Data collection and saving to the file have been fully completed.")
 
