@@ -6,20 +6,16 @@ class TargetDetector:
 
     def __init__(self):
         self.color_ranges = {
-            # แดง: ตัดเงาและคราบส้ม
             "red": [
                 (np.array([0, 100, 70]), np.array([12, 255, 255])),
                 (np.array([168, 100, 70]), np.array([180, 255, 255])),
             ],
-            # เหลือง: บังคับ S >= 145 ตัดผนังห้องสีครีมโดยเด็ดขาด
             "yellow": [
                 (np.array([20, 120, 70]), np.array([38, 255, 255])),
             ],
-            # เขียว: เพิ่ม S >= 60 และ V >= 50 เพื่อไม่ให้จับมุมมืด/เงาขอบประตู
             "green": [
-                (np.array([40, 60, 35]), np.array([80, 255, 255])),
+                (np.array([30, 35, 20]), np.array([95, 255, 255])),
             ],
-            # น้ำเงิน: เพิ่ม S >= 90 เพื่อไม่ให้จับเงาสะท้อนกระเบื้องจางๆ
             "blue": [
                 (np.array([95, 70, 35]), np.array([135, 255, 255])),
             ],
@@ -33,18 +29,75 @@ class TargetDetector:
         }
 
         self.kernel_open = np.ones((3, 3), np.uint8)
-        self.kernel_close = np.ones((7, 7), np.uint8)
+        self.kernel_close = np.ones((5, 5), np.uint8)
+        self.kernel_edge = np.ones((3, 3), np.uint8)
         self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
     def _preprocess_hsv(self, frame):
-        blurred = cv2.GaussianBlur(frame, (5, 5), 0)
+        blurred = cv2.GaussianBlur(frame, (3, 3), 0)
         hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv)
         v = self.clahe.apply(v)
         return cv2.merge([h, s, v])
 
+    def _sobel_edges(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gradient_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+        gradient_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+        magnitude = cv2.magnitude(gradient_x, gradient_y)
+        magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        _, edges = cv2.threshold(magnitude, 45, 255, cv2.THRESH_BINARY)
+        return cv2.dilate(edges, self.kernel_edge, iterations=1)
+
+    @staticmethod
+    def _angle_cosine(point_a, point_b, point_c):
+        vector_a = point_a - point_b
+        vector_c = point_c - point_b
+        denominator = np.linalg.norm(vector_a) * np.linalg.norm(vector_c)
+        if denominator == 0:
+            return 1.0
+        return abs(float(np.dot(vector_a, vector_c) / denominator))
+
+    def _classify_shape(self, contour, area, width, height):
+        perimeter = cv2.arcLength(contour, True)
+        if perimeter == 0:
+            return "unknown"
+
+        polygon = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
+        vertices = len(polygon)
+        circularity = (4 * np.pi * area) / (perimeter ** 2)
+        _, enclosing_radius = cv2.minEnclosingCircle(contour)
+        enclosing_area = np.pi * enclosing_radius ** 2
+        circle_fill = area / enclosing_area if enclosing_area else 0.0
+
+        if vertices == 3:
+            return "triangle"
+
+        if vertices == 4:
+            points = polygon.reshape(4, 2).astype(np.float32)
+            cosines = [
+                self._angle_cosine(
+                    points[(index - 1) % 4],
+                    points[index],
+                    points[(index + 1) % 4],
+                )
+                for index in range(4)
+            ]
+            rectangularity = area / float(width * height)
+            if max(cosines) < 0.35 and rectangularity > 0.65:
+                return "rectangle"
+
+        if circularity > 0.72 and circle_fill > 0.72:
+            return "circle"
+
+        if vertices >= 5 and circularity > 0.60 and circle_fill > 0.60:
+            return "circle"
+
+        return "unknown"
+
     def detect(self, frame, draw=True):
         hsv = self._preprocess_hsv(frame)
+        sobel_edges = self._sobel_edges(frame)
         frame_h, frame_w = frame.shape[:2]
         detected_targets = []
 
@@ -52,14 +105,16 @@ class TargetDetector:
         max_area = (frame_w * frame_h) * 0.20
 
         for color_name, ranges in self.color_ranges.items():
-            # 1. สร้าง Mask
             mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
             for lower, upper in ranges:
                 mask |= cv2.inRange(hsv, lower, upper)
 
-            # 2. ทำความสะอาด Mask (เพิ่ม iterations=2 เพื่อลบเม็ด Noise ฝุ่น/เงาของสีเขียวให้หมด)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel_open, iterations=2)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel_close)
+            # Use edges only next to detected color, so background edges do not become targets.
+            nearby_color = cv2.dilate(mask, self.kernel_edge, iterations=1)
+            edge_hint = cv2.bitwise_and(sobel_edges, nearby_color)
+            mask = cv2.bitwise_or(mask, edge_hint)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel_open, iterations=1)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel_close, iterations=2)
 
             contours, _ = cv2.findContours(
                 mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -70,18 +125,13 @@ class TargetDetector:
                 if area < min_area or area > max_area:
                     continue
 
-                peri = cv2.arcLength(cnt, True)
-                if peri == 0:
-                    continue
+                x, y, w, h = cv2.boundingRect(cnt)
 
-                approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
-                x, y, w, h = cv2.boundingRect(approx)
-
-                # 3. ตัดพื้นที่เหนือพื้นห้อง (เพดาน, ประตู, สวิตช์ไฟ)
+                # กรองพื้นที่เหนือพื้นห้อง
                 if (y + h) < (frame_h * 0.35):
                     continue
 
-                # 4. กรองขอบจอภาพ
+                # กรองขอบจอภาพ
                 edge_margin = 3
                 if (
                     x <= edge_margin
@@ -91,29 +141,20 @@ class TargetDetector:
                 ):
                     continue
 
-                # 5. สัดส่วน Aspect Ratio (ตัดแสงสะท้อนแนวยาวบนกระเบื้อง)
+                # กรอง Aspect Ratio
                 aspect_ratio = float(w) / h
                 if not (0.50 <= aspect_ratio <= 1.50):
                     continue
 
-                # 6. กรองกำแพง/แสงเงาเว้าแหว่งด้วย Solidity
+                # กรอง Solidity
                 solidity = float(area) / (w * h)
-                if solidity < 0.65:
+                if solidity < 0.40:
                     continue
 
-                # ==============================================================
-                # 7. แยกวงกลม vs สี่เหลี่ยม ด้วย Enclosing Circle Ratio (แม่นยำสูง)
-                # ==============================================================
-                (_, _), radius = cv2.minEnclosingCircle(cnt)
-                circle_area = np.pi * (radius ** 2)
-                circle_ratio = area / circle_area if circle_area > 0 else 0
+                shape = self._classify_shape(cnt, area, w, h)
 
-                # - วงกลมจริง: จะกินพื้นที่วงกลมล้อมรอบ > 76% (circle_ratio >= 0.76)
-                # - สี่เหลี่ยมจัตุรัส: ตามทฤษฎีเรขาคณิตจะกินพื้นที่เพียง ~63.6% ของวงกลมล้อมรอบ
-                if circle_ratio >= 0.76:
-                    shape = "circle"
-                else:
-                    shape = "rectangle"
+                if shape == "unknown":
+                    continue
 
                 center = (x + w // 2, y + h // 2)
                 target_info = {

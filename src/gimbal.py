@@ -54,7 +54,9 @@ class GimbalController:
         self.freq_gimbal = config["data_collection"]["frequencies"]["gimbal"]
         self.bullet = getattr(blaster, config["gimbal"]["bullet_type"])
         self.target_marker = str(config["gimbal"]["target_marker"])
+        self.shots_per_target = config["gimbal"]["shots_per_target"]
         self.threshold =config["gimbal"]["error_threshold"]
+        self.fire_threshold = config["gimbal"]["fire_error_threshold"]
 
         yaw_pid = config["gimbal"]["pid_yaw"]
         pitch_pid = config["gimbal"]["pid_pitch"]
@@ -75,7 +77,7 @@ class GimbalController:
         self.target_locked = False
 
     def gimbal_shoot(self):
-        self.ep_blaster.fire(fire_type=self.bullet, times=self.freq_gimbal)
+        self.ep_blaster.fire(fire_type=self.bullet, times=self.shots_per_target)
 
     def reset_gimbal(self):
         """หยุดมอเตอร์ สั่งกิมบอลกลับมาจุดศูนย์กลาง (0, 0) และรีเซ็ตค่า PID ทั้งหมด"""
@@ -86,7 +88,7 @@ class GimbalController:
         self.target_locked = False
         print(">> Gimbal recentered and PID reset.")
 
-    def aim_and_shoot(self, target_center, frame_width, frame_height):
+    def aim_and_shoot(self, target_center, frame_width, frame_height, fire_enabled=True):
         """คำนวณ Error เล็ง และยิง คืนค่า True เมื่อยิงสำเร็จ"""
         cx, cy = target_center
         err_x = (cx / frame_width) - 0.5
@@ -96,7 +98,11 @@ class GimbalController:
         pitch_speed = self.pid_pitch.compute(err_y)
 
         # เมื่อเล็งเข้าเป้าตาม Deadband
-        if abs(err_x) < self.threshold and abs(err_y) < self.threshold:
+        if (
+            fire_enabled
+            and abs(err_x) < self.fire_threshold
+            and abs(err_y) < self.fire_threshold
+        ):
             self.ep_gimbal.drive_speed(pitch_speed=0, yaw_speed=0)
             print(">> Locked on Target! Firing...")
             self.gimbal_shoot()

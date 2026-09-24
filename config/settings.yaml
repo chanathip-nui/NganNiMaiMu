@@ -26,10 +26,23 @@ movement:
   z_speed: 30        # Rotation speed (degrees/second)
   angle: 90          # Initial turning angle (e.g., 90 degrees)
 
+targeting:
+  required_color: "blue"
+  required_shape: "circle"
+  min_targets: 16
+  max_targets: 65
+  spacing_min_m: 0.03
+  spacing_max_m: 0.07
+  # Measure this once for the camera/target distance and update as needed.
+  pixels_per_meter: 1000
+  y_direction: 1
+
 gimbal:
   bullet_type: "WATER_FIRE"
   target_marker: "1"
-  error_threshold: 0.03       # ระยะคลาดเคลื่อนที่ยอมรับได้ (Deadband)
+  shots_per_target: 1
+  error_threshold: 0.08       # ระยะคลาดเคลื่อนที่ยอมรับได้ (Deadband)
+  fire_error_threshold: 0.03  # ต้องตรงเป้ามากก่อนอนุญาตให้ยิง
   pid_yaw:
     kp: 120.0                 # ปรับค่าตามความเหมาะสม
     ki: 0.0

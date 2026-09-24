@@ -155,4 +155,8 @@ class ChassisController:
 
         print("Data collection and saving to the file have been fully completed.")
 
+    def move_y(self, distance):
+        """Move sideways along the chassis Y axis and wait until complete."""
+        self.ep_chassis.move(x=0, y=distance, z=0).wait_for_completed()
+
 
